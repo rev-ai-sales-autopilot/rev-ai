@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -24,11 +25,36 @@
     --input: 217.2 32.6% 17.5%;
     --ring: 224.3 76.3% 48%;
     --radius: 0.5rem;
+=======
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+>>>>>>> faa4a56 (feat: initialize Day 1 project architecture, documentation, and Next.js foundation)
   }
 }
 
 body {
+<<<<<<< HEAD
   color: hsl(var(--foreground));
   background: hsl(var(--background));
+=======
+  background: var(--background);
+  color: var(--foreground);
+>>>>>>> faa4a56 (feat: initialize Day 1 project architecture, documentation, and Next.js foundation)
   font-family: Arial, Helvetica, sans-serif;
 }

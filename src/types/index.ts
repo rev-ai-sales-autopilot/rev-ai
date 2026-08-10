@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 /**
  * Core Type Definitions for Rev AI — AI Sales Autopilot
  */
@@ -112,3 +113,8 @@ export interface AutomationRun {
   startedAt: string;
   completedAt?: string;
 }
+=======
+export * from './database';
+export * from './ai';
+export * from './automation';
+>>>>>>> faa4a56 (feat: initialize Day 1 project architecture, documentation, and Next.js foundation)
