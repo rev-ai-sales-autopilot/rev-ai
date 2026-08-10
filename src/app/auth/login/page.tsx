@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
+import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import { ArrowRight, KeyRound, Mail, AlertCircle, Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
@@ -22,6 +22,15 @@ export default function LoginPage() {
 
     setLoading(true);
     setErrorMessage(null);
+
+    // 1. Verify Supabase configuration before initiating network call
+    if (!isSupabaseConfigured()) {
+      setErrorMessage(
+        'Supabase is not configured yet. Please update NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local with your Supabase credentials.'
+      );
+      setLoading(false);
+      return;
+    }
 
     try {
       const supabase = createClient();
@@ -76,7 +85,9 @@ export default function LoginPage() {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       if (msg.includes('fetch') || msg.includes('placeholder')) {
-        setErrorMessage('Unable to sign in right now. Please verify your Supabase environment variables in .env.local.');
+        setErrorMessage(
+          'Unable to sign in right now. Please verify your Supabase environment variables in .env.local.'
+        );
       } else {
         setErrorMessage('An unexpected authentication error occurred. Please try again.');
       }
@@ -111,7 +122,7 @@ export default function LoginPage() {
           {errorMessage && (
             <div className="mb-6 p-4 border-sharp bg-red-50 text-red-700 flex items-start gap-3">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-600" />
-              <span className="text-xs font-bold uppercase tracking-wider">{errorMessage}</span>
+              <span className="text-xs font-bold uppercase tracking-wider leading-relaxed">{errorMessage}</span>
             </div>
           )}
 
