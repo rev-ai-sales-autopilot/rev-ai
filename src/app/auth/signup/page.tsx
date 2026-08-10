@@ -1,8 +1,74 @@
+'use client';
+
+import { useState } from 'react';
 import Link from 'next/link';
-import { signUpAction } from '../actions';
-import { ArrowRight, KeyRound, Mail, User } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
+import { ArrowRight, KeyRound, Mail, User, AlertCircle, Loader2 } from 'lucide-react';
 
 export default function SignUpPage() {
+  const router = useRouter();
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!fullName || !email || !password) {
+      setErrorMessage('All fields are required.');
+      return;
+    }
+
+    setLoading(true);
+    setErrorMessage(null);
+
+    try {
+      const supabase = createClient();
+
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+          },
+        },
+      });
+
+      if (error) {
+        setErrorMessage(error.message);
+        setLoading(false);
+        return;
+      }
+
+      if (data.user) {
+        // Sync to public.users table if accessible
+        try {
+          await supabase.from('users').upsert({
+            auth_id: data.user.id,
+            email,
+            full_name: fullName,
+          });
+        } catch {
+          // Fallback
+        }
+
+        router.push('/onboarding');
+        router.refresh();
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('fetch') || msg.includes('placeholder')) {
+        setErrorMessage('Unable to register right now. Please verify your Supabase environment variables in .env.local.');
+      } else {
+        setErrorMessage('An unexpected registration error occurred. Please try again.');
+      }
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-swiss-grid flex items-center justify-center p-6 selection:bg-[#12B76A]">
       <div className="w-full max-w-md relative">
@@ -26,8 +92,16 @@ export default function SignUpPage() {
             </p>
           </div>
 
+          {/* Error Feedback Display */}
+          {errorMessage && (
+            <div className="mb-6 p-4 border-sharp bg-red-50 text-red-700 flex items-start gap-3">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-600" />
+              <span className="text-xs font-bold uppercase tracking-wider">{errorMessage}</span>
+            </div>
+          )}
+
           {/* Form */}
-          <form action={signUpAction} className="space-y-5">
+          <form onSubmit={handleSignUp} className="space-y-5">
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-black mb-2">
                 Full Name
@@ -36,9 +110,12 @@ export default function SignUpPage() {
                 <input
                   type="text"
                   name="fullName"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
                   required
+                  disabled={loading}
                   placeholder="Jane Doe"
-                  className="w-full border-sharp bg-[#F1F2F3] px-4 py-3 text-sm text-black placeholder:text-black/40 focus:outline-none focus:ring-2 focus:ring-[#12B76A] transition-all font-medium"
+                  className="w-full border-sharp bg-[#F1F2F3] px-4 py-3 text-sm text-black placeholder:text-black/40 focus:outline-none focus:ring-2 focus:ring-[#12B76A] transition-all font-medium disabled:opacity-60"
                 />
                 <User className="absolute right-3 top-3.5 w-4 h-4 text-black/40" />
               </div>
@@ -52,9 +129,12 @@ export default function SignUpPage() {
                 <input
                   type="email"
                   name="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   required
+                  disabled={loading}
                   placeholder="jane@company.com"
-                  className="w-full border-sharp bg-[#F1F2F3] px-4 py-3 text-sm text-black placeholder:text-black/40 focus:outline-none focus:ring-2 focus:ring-[#12B76A] transition-all font-medium"
+                  className="w-full border-sharp bg-[#F1F2F3] px-4 py-3 text-sm text-black placeholder:text-black/40 focus:outline-none focus:ring-2 focus:ring-[#12B76A] transition-all font-medium disabled:opacity-60"
                 />
                 <Mail className="absolute right-3 top-3.5 w-4 h-4 text-black/40" />
               </div>
@@ -68,17 +148,32 @@ export default function SignUpPage() {
                 <input
                   type="password"
                   name="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   required
                   minLength={8}
+                  disabled={loading}
                   placeholder="Minimum 8 characters"
-                  className="w-full border-sharp bg-[#F1F2F3] px-4 py-3 text-sm text-black placeholder:text-black/40 focus:outline-none focus:ring-2 focus:ring-[#12B76A] transition-all font-medium"
+                  className="w-full border-sharp bg-[#F1F2F3] px-4 py-3 text-sm text-black placeholder:text-black/40 focus:outline-none focus:ring-2 focus:ring-[#12B76A] transition-all font-medium disabled:opacity-60"
                 />
                 <KeyRound className="absolute right-3 top-3.5 w-4 h-4 text-black/40" />
               </div>
             </div>
 
-            <button type="submit" className="btn-pill-primary w-full justify-center py-3.5 text-sm uppercase tracking-wider mt-2">
-              Create SaaS Account <ArrowRight className="w-4 h-4" />
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn-pill-primary w-full justify-center py-3.5 text-sm uppercase tracking-wider mt-2 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" /> Creating Account...
+                </>
+              ) : (
+                <>
+                  Create SaaS Account <ArrowRight className="w-4 h-4" />
+                </>
+              )}
             </button>
           </form>
 
