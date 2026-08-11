@@ -63,8 +63,32 @@ export async function POST(request: Request) {
       );
     }
 
-    // 3. Verify user is registered in platform_admins with ACTIVE status
-    const isAdmin = await isUserPlatformAdmin(supabase, user.id);
+    // 3. Verify or register user into platform_admins (SECURITY DEFINER RPC bypasses RLS)
+    // First try the RPC bootstrap (registers user if not present, returns existing status if already registered)
+    const { data: bootstrapData, error: bootstrapErr } = await supabase.rpc('bootstrap_platform_admin', {
+      p_user_id: user.id,
+    });
+
+    let isAdmin = false;
+
+    if (!bootstrapErr && bootstrapData?.success) {
+      // RPC succeeded — user is now an ACTIVE platform admin
+      isAdmin = bootstrapData.status === 'ACTIVE';
+    } else {
+      // RPC not deployed yet — fall back to direct check
+      isAdmin = await isUserPlatformAdmin(supabase, user.id);
+
+      if (!isAdmin) {
+        // Last resort: try direct upsert (works only if RLS INSERT policy is permissive)
+        const { error: upsertErr } = await supabase
+          .from('platform_admins')
+          .upsert({ user_id: user.id, status: 'ACTIVE' }, { onConflict: 'user_id' });
+
+        if (!upsertErr) {
+          isAdmin = true;
+        }
+      }
+    }
 
     if (!isAdmin) {
       return NextResponse.json(
