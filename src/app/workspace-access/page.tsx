@@ -2,17 +2,26 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { logoutAction } from '../auth/actions';
-import { ShieldAlert, ArrowRight, LogOut, PlusCircle, KeyRound, Send, CheckCircle2 } from 'lucide-react';
+import { ShieldAlert, LogOut, PlusCircle, KeyRound, Send, CheckCircle2, Building2, Lock } from 'lucide-react';
 
 export default function WorkspaceAccessPage() {
   const router = useRouter();
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showRequestModal, setShowRequestModal] = useState(false);
+  const [showCreateWorkspaceModal, setShowCreateWorkspaceModal] = useState(false);
+
+  // Invitation token state
   const [inviteCode, setInviteCode] = useState('');
   const [requestSent, setRequestSent] = useState(false);
   const [accepting, setAccepting] = useState(false);
+
+  // Owner bootstrap state
+  const [orgName, setOrgName] = useState('');
+  const [industry, setIndustry] = useState('Sales & Automation');
+  const [ownerAccessCode, setOwnerAccessCode] = useState('');
+  const [creating, setCreating] = useState(false);
+
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -35,7 +44,7 @@ export default function WorkspaceAccessPage() {
         setSuccess('Invitation accepted! Redirecting to workspace...');
         setTimeout(() => {
           router.push('/dashboard');
-        }, 1500);
+        }, 1200);
       } else {
         setError(json.error?.message || 'Invalid or expired invitation token.');
         setAccepting(false);
@@ -46,13 +55,48 @@ export default function WorkspaceAccessPage() {
     }
   }
 
+  async function handleCreateWorkspace(e: React.FormEvent) {
+    e.preventDefault();
+    if (!orgName.trim() || !ownerAccessCode.trim()) return;
+
+    try {
+      setCreating(true);
+      setError(null);
+
+      const res = await fetch('/api/workspace/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: orgName.trim(),
+          industry: industry.trim(),
+          accessCode: ownerAccessCode.trim(),
+        }),
+      });
+
+      const json = await res.json();
+
+      if (json.success) {
+        setSuccess('Workspace verified & created! Redirecting to dashboard...');
+        setTimeout(() => {
+          router.push(json.redirectUrl || '/dashboard');
+        }, 1200);
+      } else {
+        setError(json.error?.message || 'INVALID OWNER ACCESS CODE');
+        setCreating(false);
+      }
+    } catch {
+      setError('Network connection error.');
+      setCreating(false);
+    }
+  }
+
   function handleRequestAccess(e: React.FormEvent) {
     e.preventDefault();
     setRequestSent(true);
     setTimeout(() => {
       setShowRequestModal(false);
       setRequestSent(false);
-    }, 2500);
+    }, 2000);
   }
 
   return (
@@ -95,7 +139,7 @@ export default function WorkspaceAccessPage() {
               WORKSPACE ACCESS REQUIRED
             </h1>
             <p className="text-xs font-medium text-black/70 leading-relaxed">
-              Your account is not currently connected to a Rev AI workspace. To continue, ask your organization owner or administrator to invite you.
+              Your account is not currently connected to a Rev AI workspace. Ask your organization owner or administrator to invite you, or create a workspace using your Owner Access Code.
             </p>
           </div>
 
@@ -114,25 +158,34 @@ export default function WorkspaceAccessPage() {
           {/* Action Buttons Stack */}
           <div className="space-y-3 pt-2">
             <button
-              onClick={() => setShowInviteModal(true)}
+              onClick={() => {
+                setError(null);
+                setShowInviteModal(true);
+              }}
               className="w-full btn-pill-primary py-3 px-6 text-xs uppercase flex items-center justify-center gap-2"
             >
               <KeyRound className="w-4 h-4" /> ACCEPT INVITATION
             </button>
 
             <button
-              onClick={() => setShowRequestModal(true)}
+              onClick={() => {
+                setError(null);
+                setShowRequestModal(true);
+              }}
               className="w-full btn-editorial-secondary py-3 px-6 text-xs uppercase flex items-center justify-center gap-2"
             >
               <Send className="w-4 h-4" /> REQUEST ACCESS
             </button>
 
-            <Link
-              href="/onboarding"
+            <button
+              onClick={() => {
+                setError(null);
+                setShowCreateWorkspaceModal(true);
+              }}
               className="w-full btn-editorial-secondary py-3 px-6 text-xs uppercase flex items-center justify-center gap-2 border-black/40 text-black/80 hover:border-black hover:text-black"
             >
-              <PlusCircle className="w-4 h-4" /> CREATE NEW WORKSPACE <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
+              <PlusCircle className="w-4 h-4" /> CREATE NEW WORKSPACE
+            </button>
           </div>
 
           <div className="border-t border-black/10 pt-4 flex justify-center">
@@ -147,6 +200,88 @@ export default function WorkspaceAccessPage() {
           </div>
         </div>
       </main>
+
+      {/* Owner Access Bootstrap Modal */}
+      {showCreateWorkspaceModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="max-w-md w-full border-sharp bg-white p-6 space-y-6">
+            <div className="flex items-center justify-between border-b border-black pb-3">
+              <h3 className="font-extrabold text-sm uppercase flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-[#12B76A]" /> Create Rev AI Workspace
+              </h3>
+              <button
+                onClick={() => setShowCreateWorkspaceModal(false)}
+                className="text-xs font-bold uppercase text-black/50 hover:text-black"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateWorkspace} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-black uppercase tracking-wider text-black">
+                  Workspace / Organization Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Acme Sales Corp"
+                  value={orgName}
+                  onChange={(e) => setOrgName(e.target.value)}
+                  className="w-full p-3 text-xs font-semibold bg-[#F1F2F3] border-sharp focus:outline-none focus:ring-2 focus:ring-black"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-black uppercase tracking-wider text-black">
+                  Industry / Sector
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. B2B SaaS & Services"
+                  value={industry}
+                  onChange={(e) => setIndustry(e.target.value)}
+                  className="w-full p-3 text-xs font-semibold bg-[#F1F2F3] border-sharp focus:outline-none focus:ring-2 focus:ring-black"
+                />
+              </div>
+
+              <div className="space-y-1.5 border-t border-black/10 pt-3">
+                <label className="block text-xs font-black uppercase tracking-wider text-black flex items-center gap-1.5">
+                  <Lock className="w-3.5 h-3.5 text-[#F4B62A]" /> Owner Access Code <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="password"
+                  required
+                  placeholder="Enter Owner Access Code (e.g. rev9422)"
+                  value={ownerAccessCode}
+                  onChange={(e) => setOwnerAccessCode(e.target.value)}
+                  className="w-full p-3 text-xs font-mono font-bold bg-[#F1F2F3] border-sharp focus:outline-none focus:ring-2 focus:ring-black"
+                />
+                <p className="text-[10px] text-black/60">
+                  Required server authorization code for creating a workspace with OWNER privileges.
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateWorkspaceModal(false)}
+                  className="btn-editorial-secondary py-2 px-4 text-xs uppercase"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={creating}
+                  className="btn-pill-primary py-2 px-6 text-xs uppercase flex items-center gap-2"
+                >
+                  {creating ? 'Verifying...' : 'VERIFY & CREATE WORKSPACE →'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Accept Invitation Modal */}
       {showInviteModal && (
@@ -166,7 +301,7 @@ export default function WorkspaceAccessPage() {
               <input
                 type="text"
                 required
-                placeholder="Paste invitation code / token..."
+                placeholder="Paste invitation code..."
                 value={inviteCode}
                 onChange={(e) => setInviteCode(e.target.value)}
                 className="w-full p-3 text-xs font-mono font-semibold bg-[#F1F2F3] border-sharp focus:outline-none focus:ring-2 focus:ring-black"

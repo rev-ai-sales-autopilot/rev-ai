@@ -81,14 +81,17 @@ export default function OnboardingPage() {
 
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-black mb-2">
-                  Assign Owner Role
+                  Owner Access Code *
                 </label>
-                <input
-                  type="text"
-                  disabled
-                  value="OWNER (Default)"
-                  className="w-full border-sharp bg-black/10 px-4 py-3 text-sm text-black/70 font-bold uppercase cursor-not-allowed"
-                />
+                <div className="relative">
+                  <input
+                    type="password"
+                    name="accessCode"
+                    required
+                    placeholder="Enter Owner Access Code (e.g. rev9422)"
+                    className="w-full border-sharp bg-[#F1F2F3] px-4 py-3 text-sm text-black font-mono font-bold placeholder:text-black/40 focus:outline-none focus:ring-2 focus:ring-[#12B76A] transition-all"
+                  />
+                </div>
               </div>
             </div>
 

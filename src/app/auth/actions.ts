@@ -105,6 +105,13 @@ export async function createOrganizationAction(formData: FormData): Promise<void
     return redirect('/onboarding?error=' + encodeURIComponent('Organization name and industry are required.'));
   }
 
+  const accessCode = (formData.get('accessCode') as string) || '';
+  const expectedOwnerCode = process.env.REV_AI_OWNER_ACCESS_CODE || 'rev9422';
+
+  if (accessCode.trim().toLowerCase() !== expectedOwnerCode.trim().toLowerCase()) {
+    return redirect('/onboarding?error=' + encodeURIComponent('INVALID OWNER ACCESS CODE'));
+  }
+
   const supabase = await createServerSupabaseClient();
 
   const {
@@ -122,6 +129,17 @@ export async function createOrganizationAction(formData: FormData): Promise<void
   }
 
   const userId = userProfile.id;
+
+  // Prevent duplicate organization creation for existing members
+  const { data: existingMember } = await supabase
+    .from('organization_members')
+    .select('organization_id')
+    .eq('user_id', userId)
+    .single();
+
+  if (existingMember) {
+    return redirect('/dashboard');
+  }
 
   const slug =
     name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') +
