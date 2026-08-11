@@ -90,14 +90,22 @@ export async function POST(request: Request) {
     // 2. Direct JS execution fallback if RPC function is not deployed on remote DB
     const { data: existingMember } = await supabase
       .from('organization_members')
-      .select('organization_id')
+      .select('id, organization_id, role')
       .eq('user_id', profile.id)
       .maybeSingle();
 
     if (existingMember) {
+      // Ensure role is set to OWNER when valid owner access code is submitted
+      if (existingMember.role !== 'OWNER') {
+        await supabase
+          .from('organization_members')
+          .update({ role: 'OWNER' })
+          .eq('id', existingMember.id);
+      }
+
       return NextResponse.json({
         success: true,
-        message: 'User already belongs to a workspace.',
+        message: 'Workspace owner access verified & role updated to OWNER.',
         redirectUrl: '/dashboard',
       });
     }
