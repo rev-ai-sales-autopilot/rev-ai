@@ -52,20 +52,22 @@ export async function updateSession(request: NextRequest) {
       .from('users')
       .select('id')
       .eq('auth_id', user.id)
-      .single();
+      .maybeSingle();
 
     if (profile) {
       const { data: member } = await supabase
         .from('organization_members')
         .select('id')
         .eq('user_id', profile.id)
-        .single();
+        .maybeSingle();
 
       if (!member) {
         const url = request.nextUrl.clone();
         url.pathname = '/workspace-access';
         return NextResponse.redirect(url);
       }
+    } else {
+      // If profile hasn't been created yet, allow through to dashboard layout where getOrCreateUserProfile will auto-provision it cleanly
     }
   }
 
