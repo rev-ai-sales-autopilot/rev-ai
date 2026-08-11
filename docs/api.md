@@ -62,13 +62,15 @@ All Next.js API endpoints (`src/app/api/...`) operate under strict authorization
 | `/api/ai/generate-reply` | POST | Trigger Sales Agent for context-aware customer reply | Yes (Server/Webhook) |
 | `/api/ai/runs` | GET | Fetch `ai_runs` history for token cost tracking & debugging | Yes (Admin) |
 
-### Automation & Webhooks
+### Workflow Automation (Phase 2 Foundation)
 
 | Endpoint | Method | Purpose | Auth Required |
 |---|---|---|---|
-| `/api/webhooks/n8n` | POST | Inbound webhook receiver from n8n workflows | Secret Signature |
-| `/api/webhooks/lead-capture` | POST | Public lead ingestion form webhook | API Key / Token |
-| `/api/automation/runs` | GET | Fetch `automation_runs` status & workflow logs | Yes (Admin) |
+| `/api/workflows` | GET | List organization workflows | Yes (Member) |
+| `/api/workflows` | POST | Create new workflow definition | Yes (Member) |
+| `/api/workflows/[id]` | GET | Fetch workflow details with nodes & edges | Yes (Member) |
+| `/api/workflows/[id]` | PATCH | Update workflow metadata, status, nodes & edges | Yes (Member) |
+| `/api/workflows/[id]` | DELETE | Delete workflow definition | Yes (Admin/Owner) |
 
 ---
 

@@ -70,21 +70,37 @@ Incoming webhooks from n8n to Rev AI (`/api/webhooks/n8n`) must verify HMAC sign
 
 ---
 
-## 4. Automation Runs Tracking (`automation_runs`)
+## 5. Workflow Node Graph & Status Lifecycle
 
-Every webhook or workflow trigger execution logs an entry to `public.automation_runs`:
+Rev AI workflows are defined as node graphs linking Triggers, AI Operations, Conditions, Actions, and Delays:
 
-```typescript
-export interface AutomationRunRecord {
-  id?: string;
-  organization_id: string;
-  workflow_name: string;
-  trigger_event: SystemEventType;
-  status: 'SUCCESS' | 'FAILED' | 'RUNNING';
-  input_payload?: Record<string, any>;
-  output_payload?: Record<string, any>;
-  error_message?: string;
-  started_at: string;
-  completed_at?: string;
-}
+```text
+┌─────────────────────────────────┐
+│ TRIGGER: LEAD_CREATED           │
+└────────────────┬────────────────┘
+                 │
+                 ▼
+┌─────────────────────────────────┐
+│ AI: ANALYZE_LEAD                │
+└────────────────┬────────────────┘
+                 │
+                 ▼
+┌─────────────────────────────────┐
+│ CONDITION: score > 80           │
+└────────────────┬────────────────┘
+                 │
+                 ▼
+┌─────────────────────────────────┐
+│ ACTION: ASSIGN_LEAD             │
+└─────────────────────────────────┘
 ```
+
+### Workflow Status Lifecycle
+- **DRAFT:** Workflow is currently being designed and configured in the builder.
+- **ACTIVE:** Workflow is published and enabled for future execution triggering.
+- **PAUSED:** Workflow execution triggers are temporarily suspended.
+
+### Observability Entities
+- `public.workflow_runs`: High-level run audit recording workflow execution status (`RUNNING`, `COMPLETED`, `FAILED`, `CANCELLED`).
+- `public.workflow_run_steps`: Granular node-by-node execution log recording node input, output, duration, and error tracebacks.
+

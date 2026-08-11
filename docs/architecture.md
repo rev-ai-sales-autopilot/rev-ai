@@ -57,6 +57,11 @@ Rev AI implements a **Logical Multi-Tenancy model** built on top of Supabase Pos
 User (Supabase Auth `auth.users`)
   └── Organization Member (`public.organization_members`)
         └── Organization (`public.organizations`)
+              ├── Workflows (`public.workflows`)
+              │     ├── Workflow Nodes (`public.workflow_nodes`)
+              │     ├── Workflow Edges (`public.workflow_edges`)
+              │     ├── Workflow Runs (`public.workflow_runs`)
+              │     └── Workflow Run Steps (`public.workflow_run_steps`)
               ├── Business Profile (`public.business_profiles`)
               ├── Services (`public.services`)
               ├── Business FAQs (`public.business_faqs`)
@@ -70,8 +75,34 @@ User (Supabase Auth `auth.users`)
 
 ### Core Security Invariants
 1. Every business data table **must** contain an `organization_id` foreign key referencing `public.organizations(id)`.
-2. Row-Level Security (RLS) is **mandatory** on all tenant tables.
+2. Row-Level Security (RLS) is **mandatory** on all tenant tables including workflows and workflow execution runs.
 3. API routes and database queries **must never** accept `organization_id` directly from client inputs without server-side verification against the authenticated user's active membership in `organization_members`.
+
+---
+
+## 3. Workflow Automation Engine Architecture
+
+Rev AI's core product is an **AI-Powered Business Workflow Automation Engine**. Workflows connect event triggers, AI intelligence operations, conditional logic branches, action handlers, and execution auditing.
+
+```text
+USER
+ │
+ ▼
+WORKFLOW BUILDER UI (/dashboard/workflows)
+ │
+ ▼
+PERSISTED WORKFLOW GRAPH (workflows, workflow_nodes, workflow_edges)
+ │
+ ▼
+TRIGGER EVENT (e.g. LEAD_CREATED, WEBHOOK_RECEIVED)
+ │
+ ▼
+NODE GRAPH PIPELINE (TRIGGER -> AI -> CONDITION -> ACTION -> DELAY)
+ │
+ ▼
+EXECUTION ENGINE & AUDITING (workflow_runs & workflow_run_steps)
+```
+
 
 ---
 

@@ -219,17 +219,61 @@ CREATE TABLE IF NOT EXISTS public.ai_runs (
 );
 
 -- ============================================================================
--- 11. AUTOMATION RUNS (n8n & Webhook Execution Monitoring)
+-- 12. WORKFLOW AUTOMATION TABLES (Workflows, Nodes, Edges, Runs, Run Steps)
 -- ============================================================================
-CREATE TABLE IF NOT EXISTS public.automation_runs (
+CREATE TABLE IF NOT EXISTS public.workflows (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
-    workflow_name TEXT NOT NULL,
-    trigger_event TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'RUNNING', -- 'SUCCESS' | 'FAILED' | 'RUNNING'
-    input_payload JSONB DEFAULT '{}'::jsonb,
-    output_payload JSONB DEFAULT '{}'::jsonb,
-    error_message TEXT,
+    name TEXT NOT NULL,
+    description TEXT,
+    status TEXT NOT NULL DEFAULT 'DRAFT' CHECK (status IN ('DRAFT', 'ACTIVE', 'PAUSED')),
+    version INT NOT NULL DEFAULT 1,
+    created_by UUID REFERENCES public.users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.workflow_nodes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    workflow_id UUID NOT NULL REFERENCES public.workflows(id) ON DELETE CASCADE,
+    type TEXT NOT NULL CHECK (type IN ('TRIGGER', 'AI', 'CONDITION', 'ACTION', 'DELAY')),
+    name TEXT NOT NULL,
+    config JSONB NOT NULL DEFAULT '{}'::jsonb,
+    position_x FLOAT NOT NULL DEFAULT 0,
+    position_y FLOAT NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.workflow_edges (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    workflow_id UUID NOT NULL REFERENCES public.workflows(id) ON DELETE CASCADE,
+    source_node_id UUID NOT NULL REFERENCES public.workflow_nodes(id) ON DELETE CASCADE,
+    target_node_id UUID NOT NULL REFERENCES public.workflow_nodes(id) ON DELETE CASCADE,
+    condition TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.workflow_runs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    workflow_id UUID NOT NULL REFERENCES public.workflows(id) ON DELETE CASCADE,
+    organization_id UUID NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
+    status TEXT NOT NULL DEFAULT 'RUNNING' CHECK (status IN ('RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED')),
+    trigger_type TEXT NOT NULL,
+    started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    completed_at TIMESTAMPTZ,
+    error TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.workflow_run_steps (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    workflow_run_id UUID NOT NULL REFERENCES public.workflow_runs(id) ON DELETE CASCADE,
+    node_id UUID NOT NULL REFERENCES public.workflow_nodes(id) ON DELETE CASCADE,
+    status TEXT NOT NULL DEFAULT 'PENDING',
+    input JSONB DEFAULT '{}'::jsonb,
+    output JSONB DEFAULT '{}'::jsonb,
+    error TEXT,
     started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     completed_at TIMESTAMPTZ
 );
