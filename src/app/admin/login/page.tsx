@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ShieldCheck, Lock, Mail, KeyRound, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
+import { ShieldCheck, Lock, Mail, KeyRound, ArrowRight, ArrowLeft, Loader2, AlertCircle } from 'lucide-react';
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -74,7 +75,12 @@ export default function AdminLoginPage() {
               </span>
             </div>
           </div>
-          <span className="text-xs font-mono text-white/60 uppercase">Platform Control Engine</span>
+          <Link
+            href="/auth/login"
+            className="text-xs font-mono text-white/80 hover:text-[#12B76A] font-bold uppercase flex items-center gap-1.5 transition-colors"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" /> User Sign In
+          </Link>
         </div>
       </header>
 
@@ -91,7 +97,7 @@ export default function AdminLoginPage() {
               PLATFORM ADMIN LOGIN
             </h1>
             <p className="text-xs font-bold text-black/60 uppercase tracking-widest">
-              Rev AI Master Control Panel Authentication
+              REV AI MASTER CONTROL PANEL AUTHENTICATION
             </p>
           </div>
 
@@ -156,7 +162,7 @@ export default function AdminLoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="btn-pill-primary w-full justify-center py-3.5 text-xs uppercase tracking-wider mt-4"
+              className="btn-pill-primary w-full justify-center py-3.5 text-xs uppercase tracking-wider mt-4 cursor-pointer"
             >
               {loading ? (
                 <span className="flex items-center gap-2">
@@ -169,6 +175,16 @@ export default function AdminLoginPage() {
               )}
             </button>
           </form>
+
+          {/* Return to Normal User Login */}
+          <div className="pt-4 border-t border-black/10 text-center">
+            <Link
+              href="/auth/login"
+              className="inline-flex items-center gap-2 text-xs font-extrabold uppercase text-black/70 hover:text-black tracking-wider transition-colors"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" /> Return to User Sign In
+            </Link>
+          </div>
         </div>
       </main>
 

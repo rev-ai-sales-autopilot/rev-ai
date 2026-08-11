@@ -111,10 +111,10 @@ export default function LoginPage() {
               <span className="font-extrabold text-sm uppercase tracking-wider">REV AI</span>
             </Link>
             <h1 className="text-3xl font-black uppercase tracking-tight text-black">
-              Sign In
+              USER SIGN IN
             </h1>
             <p className="text-xs font-semibold text-black/60 uppercase tracking-widest mt-1">
-              Enter your credentials to access your sales workspace
+              ENTER YOUR CREDENTIALS TO ACCESS YOUR SALES WORKSPACE
             </p>
           </div>
 
@@ -169,7 +169,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="btn-pill-primary w-full justify-center py-3.5 text-sm uppercase tracking-wider disabled:opacity-60 disabled:cursor-not-allowed"
+              className="btn-pill-primary w-full justify-center py-3.5 text-sm uppercase tracking-wider disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
             >
               {loading ? (
                 <>
@@ -183,11 +183,27 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Footer link */}
-          <div className="mt-8 pt-6 border-t border-black/10 flex items-center justify-between text-xs">
+          {/* New to Rev AI? */}
+          <div className="mt-6 pt-6 border-t border-black/10 flex items-center justify-between text-xs">
             <span className="text-black/60 font-medium">New to Rev AI?</span>
             <Link href="/auth/signup" className="font-bold text-black uppercase tracking-wider hover:text-[#12B76A] underline">
               Create Account
+            </Link>
+          </div>
+
+          {/* Platform Administrator Access Entry Section */}
+          <div className="mt-6 pt-6 border-t border-black/20 space-y-2">
+            <div className="text-[10px] font-black text-black/50 uppercase tracking-widest">
+              PLATFORM ADMINISTRATOR
+            </div>
+            <p className="text-xs text-black/70 font-medium">
+              Manage the Rev AI platform and organizations.
+            </p>
+            <Link
+              href="/admin/login"
+              className="w-full mt-2 py-2.5 px-4 bg-black text-white hover:bg-[#12B76A] hover:text-black text-xs font-black uppercase tracking-wider transition-colors border-sharp flex items-center justify-center gap-2"
+            >
+              ADMIN SIGN IN <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
         </div>
