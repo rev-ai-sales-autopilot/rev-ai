@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { getUserOrgMembership } from '@/lib/supabase/user-profile';
 import { Bot, CheckCircle2, ShieldCheck, Flame, Users, CalendarCheck, TrendingUp, AlertCircle } from 'lucide-react';
 
 export default async function DashboardPage() {
@@ -15,26 +16,12 @@ export default async function DashboardPage() {
 
   if (user) {
     try {
-      const { data: profile } = await supabase
-        .from('users')
-        .select('id')
-        .eq('auth_id', user.id)
-        .single();
+      const membership = await getUserOrgMembership(supabase, user);
 
-      if (profile) {
-        const { data: member } = await supabase
-          .from('organization_members')
-          .select('organization_id, organizations(name, industry)')
-          .eq('user_id', profile.id)
-          .single();
-
-        if (member) {
-          const orgId = member.organization_id;
-          if (member.organizations) {
-            const org = member.organizations as unknown as { name?: string; industry?: string };
-            activeOrgName = org.name || activeOrgName;
-            activeOrgIndustry = org.industry || activeOrgIndustry;
-          }
+      if (membership) {
+        const orgId = membership.organizationId;
+        activeOrgName = membership.orgName;
+        activeOrgIndustry = membership.orgIndustry;
 
           // Fetch actual database lead metrics scoped by orgId
           const { count: leads } = await supabase
@@ -63,7 +50,6 @@ export default async function DashboardPage() {
             .eq('status', 'WON');
           conversionsCount = won || 0;
         }
-      }
     } catch {
       // Placeholder DB fallback
     }

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { getUserOrgMembership } from '@/lib/supabase/user-profile';
 import { z } from 'zod';
 
 const createWorkflowSchema = z.object({
@@ -29,30 +30,11 @@ export async function GET() {
       );
     }
 
-    // Get user profile
-    const { data: profile } = await supabase
-      .from('users')
-      .select('id')
-      .eq('auth_id', user.id)
-      .single();
+    const membership = await getUserOrgMembership(supabase, user);
 
-    if (!profile) {
+    if (!membership) {
       return NextResponse.json(
-        { success: false, error: { code: 'NOT_FOUND', message: 'User profile not found' } },
-        { status: 404 }
-      );
-    }
-
-    // Get user active organization
-    const { data: member } = await supabase
-      .from('organization_members')
-      .select('organization_id')
-      .eq('user_id', profile.id)
-      .single();
-
-    if (!member) {
-      return NextResponse.json(
-        { success: false, error: { code: 'NO_ORGANIZATION', message: 'No organization membership found' } },
+        { success: false, error: { code: 'NO_ORGANIZATION', message: 'Organization membership required. Please complete onboarding.' } },
         { status: 403 }
       );
     }
@@ -65,7 +47,7 @@ export async function GET() {
         workflow_nodes (id, type, name),
         workflow_runs (id, status, started_at)
       `)
-      .eq('organization_id', member.organization_id)
+      .eq('organization_id', membership.organizationId)
       .order('updated_at', { ascending: false });
 
     if (fetchError) {
@@ -129,30 +111,11 @@ export async function POST(request: Request) {
 
     const { name, description, triggerType } = parsed.data;
 
-    // Get user profile
-    const { data: profile } = await supabase
-      .from('users')
-      .select('id')
-      .eq('auth_id', user.id)
-      .single();
+    const membership = await getUserOrgMembership(supabase, user);
 
-    if (!profile) {
+    if (!membership) {
       return NextResponse.json(
-        { success: false, error: { code: 'NOT_FOUND', message: 'User profile not found' } },
-        { status: 404 }
-      );
-    }
-
-    // Get user organization
-    const { data: member } = await supabase
-      .from('organization_members')
-      .select('organization_id')
-      .eq('user_id', profile.id)
-      .single();
-
-    if (!member) {
-      return NextResponse.json(
-        { success: false, error: { code: 'NO_ORGANIZATION', message: 'No organization membership found' } },
+        { success: false, error: { code: 'NO_ORGANIZATION', message: 'Organization membership required. Please complete onboarding.' } },
         { status: 403 }
       );
     }
@@ -161,11 +124,11 @@ export async function POST(request: Request) {
     const { data: newWorkflow, error: insertWfError } = await supabase
       .from('workflows')
       .insert({
-        organization_id: member.organization_id,
+        organization_id: membership.organizationId,
         name,
         description: description || '',
         status: 'DRAFT',
-        created_by: profile.id,
+        created_by: membership.userProfile.id,
       })
       .select()
       .single();

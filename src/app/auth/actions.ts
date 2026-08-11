@@ -1,6 +1,7 @@
 'use server';
 
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { getOrCreateUserProfile } from '@/lib/supabase/user-profile';
 import { redirect } from 'next/navigation';
 
 export async function signUpAction(formData: FormData): Promise<void> {
@@ -114,30 +115,13 @@ export async function createOrganizationAction(formData: FormData): Promise<void
     return redirect('/auth/login');
   }
 
-  let userId = '';
-  const { data: userProfile } = await supabase
-    .from('users')
-    .select('id')
-    .eq('auth_id', user.id)
-    .single();
+  const userProfile = await getOrCreateUserProfile(supabase, user);
 
-  if (userProfile) {
-    userId = userProfile.id;
-  } else {
-    const { data: newUser } = await supabase
-      .from('users')
-      .insert({
-        auth_id: user.id,
-        email: user.email || '',
-        full_name: user.user_metadata?.full_name || 'User',
-      })
-      .select('id')
-      .single();
-
-    if (newUser) {
-      userId = newUser.id;
-    }
+  if (!userProfile) {
+    return redirect('/onboarding?error=' + encodeURIComponent('Failed to resolve user profile.'));
   }
+
+  const userId = userProfile.id;
 
   const slug =
     name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') +

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { logoutAction } from '../auth/actions';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { getUserOrgMembership } from '@/lib/supabase/user-profile';
 import { LayoutDashboard, Users, MessageSquare, Zap, Calendar, BarChart3, Database, Shield, LogOut } from 'lucide-react';
 
 export default async function DashboardLayout({
@@ -17,29 +18,13 @@ export default async function DashboardLayout({
 
   if (user) {
     try {
-      const { data: profile } = await supabase
-        .from('users')
-        .select('id')
-        .eq('auth_id', user.id)
-        .single();
-
-      if (profile) {
-        const { data: member } = await supabase
-          .from('organization_members')
-          .select('role, organizations(name)')
-          .eq('user_id', profile.id)
-          .single();
-
-        if (member) {
-          userRole = member.role;
-          if (member.organizations) {
-            const org = member.organizations as unknown as { name?: string };
-            orgName = org.name || orgName;
-          }
-        }
+      const membership = await getUserOrgMembership(supabase, user);
+      if (membership) {
+        orgName = membership.orgName;
+        userRole = membership.role;
       }
     } catch {
-      // Offline / placeholder mode fallback
+      // Fallback
     }
   }
 
