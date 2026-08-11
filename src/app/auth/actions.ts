@@ -117,34 +117,46 @@ export async function createOrganizationAction(formData: FormData): Promise<void
     return redirect('/auth/login?error=' + encodeURIComponent('You must be signed in to create a workspace.'));
   }
 
-  // ── Call the SECURITY DEFINER RPC ──────────────────────────────────────────
-  // This function runs as the DB owner and bypasses RLS entirely.
-  // It atomically creates: organization → organization_members (OWNER) → business_profile
-  // It always uses auth.uid() internally — the caller cannot spoof another user.
-  const { data: rpcData, error: rpcError } = await supabase.rpc('create_workspace', {
+  // 1. Primary: Call public.create_workspace(p_name, p_industry, p_website, p_description)
+  let { data: rpcData, error: rpcError } = await supabase.rpc('create_workspace', {
     p_name:        name,
     p_industry:    industry || 'Sales & Marketing',
     p_website:     website     || null,
     p_description: description || null,
   });
 
+  // 2. Fallback: If create_workspace is not yet in schema cache, call existing create_workspace_owner RPC
+  if (rpcError && (rpcError.code === 'PGRST202' || rpcError.message?.includes('Could not find the function'))) {
+    console.warn('[createOrganizationAction] create_workspace not found in schema cache. Falling back to create_workspace_owner RPC.');
+    
+    const fullName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
+
+    const { data: fallbackData, error: fallbackError } = await supabase.rpc('create_workspace_owner', {
+      p_auth_id:      user.id,
+      p_email:         user.email || '',
+      p_full_name:     fullName,
+      p_org_name:      name,
+      p_org_industry:  industry || 'Sales & Marketing',
+    });
+
+    rpcData = fallbackData;
+    rpcError = fallbackError;
+  }
+
   if (rpcError) {
-    // Extract a user-friendly message from the RPC exception
     const raw = rpcError.message || 'WORKSPACE CREATION FAILED';
-    // Strip internal prefix like "WORKSPACE_CREATION_FAILED: " for clean display
     const userMsg = raw.replace(/^WORKSPACE_CREATION_FAILED:\s*/i, '').replace(/\s*\(SQLSTATE:.*\)$/, '');
     console.error('[createOrganizationAction] RPC error:', rpcError);
     return redirect('/onboarding?error=' + encodeURIComponent(userMsg || 'WORKSPACE CREATION FAILED'));
   }
 
-  // Check the RPC returned a success payload
   if (!rpcData || !rpcData.success) {
     const msg = rpcData?.error || 'WORKSPACE CREATION RETURNED UNEXPECTED RESULT';
     console.error('[createOrganizationAction] RPC returned non-success:', rpcData);
     return redirect('/onboarding?error=' + encodeURIComponent(msg));
   }
 
-  // ── Success: redirect to dashboard ─────────────────────────────────────────
+  // 3. Success: Redirect to dashboard
   return redirect('/dashboard');
 }
 
