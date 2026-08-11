@@ -47,19 +47,38 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    const { data: adminRecord } = await supabase
-      .from('platform_admins')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('status', 'ACTIVE')
-      .maybeSingle();
+    // Primary check: rev_ai_admin_session cookie (set server-side during login)
+    // Cookie value is "admin_active_<user_id>" — verify it matches authenticated user
+    const adminCookie = request.cookies.get('rev_ai_admin_session');
+    const hasValidAdminCookie =
+      adminCookie?.value === `admin_active_${user.id}`;
 
-    if (!adminRecord) {
-      const url = request.nextUrl.clone();
-      url.pathname = '/admin/login';
-      return NextResponse.redirect(url);
+    if (!hasValidAdminCookie) {
+      // Fallback: check platform_admins table (handles session after server restart)
+      const { data: adminRecord } = await supabase
+        .from('platform_admins')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('status', 'ACTIVE')
+        .maybeSingle();
+
+      if (!adminRecord) {
+        const url = request.nextUrl.clone();
+        url.pathname = '/admin/login';
+        return NextResponse.redirect(url);
+      }
+
+      // Cookie missing but DB confirms admin — set the cookie on response
+      supabaseResponse.cookies.set('rev_ai_admin_session', `admin_active_${user.id}`, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 86400,
+      });
     }
   }
+
 
   // Protect /dashboard and /onboarding routes
   if (!user && (pathname.startsWith('/dashboard') || pathname.startsWith('/onboarding'))) {

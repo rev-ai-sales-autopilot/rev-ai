@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
-import { getPlatformAdminSession, ADMIN_COOKIE_NAME } from '@/lib/auth/admin-auth';
+import { ADMIN_COOKIE_NAME } from '@/lib/auth/admin-auth';
 import { cookies } from 'next/headers';
 import { LayoutDashboard, Building2, Users, Zap, ShieldCheck, FileText, LogOut } from 'lucide-react';
 
@@ -19,11 +19,32 @@ export default async function AdminDashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const cookieStore = await cookies();
   const supabase = await createServerSupabaseClient();
-  const { isAdmin, user } = await getPlatformAdminSession(supabase);
 
-  if (!isAdmin || !user) {
+  // Get authenticated Supabase user
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
     return redirect('/admin/login');
+  }
+
+  // Primary check: rev_ai_admin_session cookie (set server-side during login)
+  const adminCookie = cookieStore.get(ADMIN_COOKIE_NAME);
+  const hasValidAdminCookie = adminCookie?.value === `admin_active_${user.id}`;
+
+  if (!hasValidAdminCookie) {
+    // Fallback: check platform_admins table (handles cookie expiry / server restart)
+    const { data: adminRecord } = await supabase
+      .from('platform_admins')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('status', 'ACTIVE')
+      .maybeSingle();
+
+    if (!adminRecord) {
+      return redirect('/admin/login');
+    }
   }
 
   return (
