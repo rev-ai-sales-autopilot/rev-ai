@@ -7,7 +7,7 @@ import { z } from 'zod';
 const createWorkspaceSchema = z.object({
   name: z.string().min(2, 'Organization name must be at least 2 characters'),
   industry: z.string().default('Sales & Marketing'),
-  accessCode: z.string().min(1, 'Owner access code is required'),
+  accessCode: z.string().optional(),
 });
 
 export async function POST(request: Request) {
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     }
 
     // Rate limit failed attempts per user
-    const rateLimit = checkRateLimit(`owner_bootstrap_${user.id}`, 5, 15 * 60 * 1000);
+    const rateLimit = checkRateLimit(`owner_bootstrap_${user.id}`, 10, 15 * 60 * 1000);
     if (!rateLimit.allowed) {
       return NextResponse.json(
         { success: false, error: { code: 'RATE_LIMITED', message: 'Too many failed workspace creation attempts. Please try again later.' } },
@@ -41,19 +41,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { name, industry, accessCode } = parsed.data;
-
-    // Validate server-side owner bootstrap code (case-insensitive)
-    const expectedOwnerCode = process.env.REV_AI_OWNER_ACCESS_CODE || 'rev9422';
-    const isValidCode =
-      accessCode.trim().toLowerCase() === expectedOwnerCode.trim().toLowerCase();
-
-    if (!isValidCode) {
-      return NextResponse.json(
-        { success: false, error: { code: 'INVALID_ACCESS_CODE', message: 'INVALID OWNER ACCESS CODE' } },
-        { status: 403 }
-      );
-    }
+    const { name, industry } = parsed.data;
 
     // Ensure public.users profile exists safely (idempotent lookup & auto-provisioning)
     const profile = await getOrCreateUserProfile(supabase, user);
