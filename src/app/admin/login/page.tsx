@@ -16,6 +16,9 @@ export default function AdminLoginPage() {
     e.preventDefault();
     if (!email.trim() || !password || !accessCode.trim()) return;
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+
     try {
       setLoading(true);
       setError(null);
@@ -28,18 +31,29 @@ export default function AdminLoginPage() {
           password,
           accessCode: accessCode.trim(),
         }),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       const json = await res.json();
 
       if (json.success) {
+        // Keep loading while redirecting
         router.push(json.redirectUrl || '/admin');
+        return; // loading stays true intentionally during navigation
       } else {
         setError(json.error?.message || 'INVALID ADMIN CREDENTIALS');
-        setLoading(false);
       }
-    } catch {
-      setError('Network connection error.');
+    } catch (err: unknown) {
+      clearTimeout(timeoutId);
+      const name = err instanceof Error ? err.name : '';
+      if (name === 'AbortError') {
+        setError('ADMIN AUTHENTICATION TIMED OUT. Please try again.');
+      } else {
+        setError('ADMIN AUTHENTICATION SERVICE UNAVAILABLE. Check your network connection.');
+      }
+    } finally {
       setLoading(false);
     }
   }
