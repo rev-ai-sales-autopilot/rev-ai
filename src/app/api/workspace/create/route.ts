@@ -43,30 +43,6 @@ export async function POST(request: Request) {
 
     const { name, industry, accessCode } = parsed.data;
 
-    // Verify user profile
-    const profile = await getOrCreateUserProfile(supabase, user);
-    if (!profile) {
-      return NextResponse.json(
-        { success: false, error: { code: 'NOT_FOUND', message: 'User profile not found' } },
-        { status: 404 }
-      );
-    }
-
-    // Check if user ALREADY has an organization membership
-    const { data: existingMember } = await supabase
-      .from('organization_members')
-      .select('organization_id')
-      .eq('user_id', profile.id)
-      .single();
-
-    if (existingMember) {
-      return NextResponse.json({
-        success: true,
-        message: 'You already belong to an active workspace.',
-        redirectUrl: '/dashboard',
-      });
-    }
-
     // Validate server-side owner bootstrap code (case-insensitive)
     const expectedOwnerCode = process.env.REV_AI_OWNER_ACCESS_CODE || 'rev9422';
     const isValidCode =
@@ -75,7 +51,16 @@ export async function POST(request: Request) {
     if (!isValidCode) {
       return NextResponse.json(
         { success: false, error: { code: 'INVALID_ACCESS_CODE', message: 'INVALID OWNER ACCESS CODE' } },
-        { status: 400 }
+        { status: 403 }
+      );
+    }
+
+    // Ensure public.users profile exists safely (idempotent lookup & auto-provisioning)
+    const profile = await getOrCreateUserProfile(supabase, user);
+    if (!profile) {
+      return NextResponse.json(
+        { success: false, error: { code: 'NOT_FOUND', message: 'Unable to resolve user profile for authenticated user' } },
+        { status: 500 }
       );
     }
 
@@ -85,7 +70,39 @@ export async function POST(request: Request) {
       '-' +
       Math.floor(Math.random() * 1000);
 
-    // 1. Create organization
+    // 1. Try atomic PostgreSQL RPC function first
+    const { data: rpcData, error: rpcError } = await supabase.rpc('create_workspace_owner', {
+      p_name: name,
+      p_slug: slug,
+      p_industry: industry,
+    });
+
+    if (!rpcError && rpcData?.success) {
+      return NextResponse.json({
+        success: true,
+        message: rpcData.already_exists
+          ? 'User already belongs to a workspace.'
+          : 'Workspace created successfully with OWNER access.',
+        redirectUrl: '/dashboard',
+      });
+    }
+
+    // 2. Direct JS execution fallback if RPC function is not deployed on remote DB
+    const { data: existingMember } = await supabase
+      .from('organization_members')
+      .select('organization_id')
+      .eq('user_id', profile.id)
+      .maybeSingle();
+
+    if (existingMember) {
+      return NextResponse.json({
+        success: true,
+        message: 'User already belongs to a workspace.',
+        redirectUrl: '/dashboard',
+      });
+    }
+
+    // Create organization
     const { data: org, error: orgError } = await supabase
       .from('organizations')
       .insert({
@@ -103,14 +120,14 @@ export async function POST(request: Request) {
       );
     }
 
-    // 2. Create business profile
+    // Create business profile
     await supabase.from('business_profiles').insert({
       organization_id: org.id,
       business_name: name,
       industry,
     });
 
-    // 3. Create organization member with OWNER role
+    // Create owner membership
     const { error: memberError } = await supabase
       .from('organization_members')
       .insert({
