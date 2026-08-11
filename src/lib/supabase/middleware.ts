@@ -46,6 +46,29 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // Redirect authenticated users with NO organization membership away from /dashboard to /workspace-access
+  if (user && pathname.startsWith('/dashboard')) {
+    const { data: profile } = await supabase
+      .from('users')
+      .select('id')
+      .eq('auth_id', user.id)
+      .single();
+
+    if (profile) {
+      const { data: member } = await supabase
+        .from('organization_members')
+        .select('id')
+        .eq('user_id', profile.id)
+        .single();
+
+      if (!member) {
+        const url = request.nextUrl.clone();
+        url.pathname = '/workspace-access';
+        return NextResponse.redirect(url);
+      }
+    }
+  }
+
   // Redirect authenticated users away from /auth/login and /auth/signup
   if (user && (pathname.startsWith('/auth/login') || pathname.startsWith('/auth/signup'))) {
     const url = request.nextUrl.clone();

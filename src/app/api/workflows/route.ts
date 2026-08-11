@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getUserOrgMembership } from '@/lib/supabase/user-profile';
+import { hasPermission } from '@/lib/auth/permissions';
 import { z } from 'zod';
 
 const createWorkflowSchema = z.object({
@@ -35,6 +36,13 @@ export async function GET() {
     if (!membership) {
       return NextResponse.json(
         { success: false, error: { code: 'NO_ORGANIZATION', message: 'Organization membership required. Please complete onboarding.' } },
+        { status: 403 }
+      );
+    }
+
+    if (!hasPermission(membership.role, 'workflow.read')) {
+      return NextResponse.json(
+        { success: false, error: { code: 'INSUFFICIENT_PERMISSIONS', message: 'Read access to workflows is restricted for your role.' } },
         { status: 403 }
       );
     }
@@ -116,6 +124,13 @@ export async function POST(request: Request) {
     if (!membership) {
       return NextResponse.json(
         { success: false, error: { code: 'NO_ORGANIZATION', message: 'Organization membership required. Please complete onboarding.' } },
+        { status: 403 }
+      );
+    }
+
+    if (!hasPermission(membership.role, 'workflow.create')) {
+      return NextResponse.json(
+        { success: false, error: { code: 'INSUFFICIENT_PERMISSIONS', message: 'Creating workflows requires Owner or Admin permissions.' } },
         { status: 403 }
       );
     }

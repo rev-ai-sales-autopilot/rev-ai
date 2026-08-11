@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { getUserOrgMembership } from '@/lib/supabase/user-profile';
+import { hasPermission } from '@/lib/auth/permissions';
 import { z } from 'zod';
 
 const updateWorkflowSchema = z.object({
@@ -39,6 +41,15 @@ export async function GET(
       return NextResponse.json(
         { success: false, error: { code: 'UNAUTHORIZED', message: 'Authentication required' } },
         { status: 401 }
+      );
+    }
+
+    const membership = await getUserOrgMembership(supabase, user);
+
+    if (!membership || !hasPermission(membership.role, 'workflow.read')) {
+      return NextResponse.json(
+        { success: false, error: { code: 'INSUFFICIENT_PERMISSIONS', message: 'Read access to workflows is restricted for your role.' } },
+        { status: 403 }
       );
     }
 
@@ -108,6 +119,14 @@ export async function PATCH(
       return NextResponse.json(
         { success: false, error: { code: 'UNAUTHORIZED', message: 'Authentication required' } },
         { status: 401 }
+      );
+    }
+    const membership = await getUserOrgMembership(supabase, user);
+
+    if (!membership || !hasPermission(membership.role, 'workflow.update')) {
+      return NextResponse.json(
+        { success: false, error: { code: 'INSUFFICIENT_PERMISSIONS', message: 'Updating workflows requires Owner or Admin permissions.' } },
+        { status: 403 }
       );
     }
 
@@ -215,6 +234,15 @@ export async function DELETE(
       return NextResponse.json(
         { success: false, error: { code: 'UNAUTHORIZED', message: 'Authentication required' } },
         { status: 401 }
+      );
+    }
+
+    const membership = await getUserOrgMembership(supabase, user);
+
+    if (!membership || !hasPermission(membership.role, 'workflow.delete')) {
+      return NextResponse.json(
+        { success: false, error: { code: 'INSUFFICIENT_PERMISSIONS', message: 'Deleting workflows requires Owner or Admin permissions.' } },
+        { status: 403 }
       );
     }
 

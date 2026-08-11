@@ -109,10 +109,10 @@ export default async function DashboardLayout({
                 <span className="flex items-center gap-3"><Database className="w-4 h-4" /> Knowledge Base</span>
                 <span className="text-[10px] bg-[#12B76A] text-black px-1 py-0.5">Day 3</span>
               </div>
-              <div className="flex items-center justify-between px-3 py-2 text-xs font-bold uppercase text-black/60 cursor-not-allowed">
-                <span className="flex items-center gap-3"><Shield className="w-4 h-4" /> Security & Team</span>
-                <span className="text-[10px] bg-black/10 px-1 py-0.5">Active</span>
-              </div>
+              <Link href="/dashboard/team" className="flex items-center justify-between px-3 py-2 text-xs font-extrabold uppercase bg-[#F1F2F3] text-black border-sharp hover:bg-black hover:text-white transition-colors">
+                <span className="flex items-center gap-3"><Shield className="w-4 h-4 text-[#12B76A]" /> Team & Security</span>
+                <span className="text-[10px] bg-[#12B76A] text-black font-extrabold px-1.5 py-0.5">ACTIVE</span>
+              </Link>
             </nav>
           </div>
         </aside>
