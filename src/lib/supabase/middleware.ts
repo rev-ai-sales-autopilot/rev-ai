@@ -79,6 +79,15 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
+  // Redirect authenticated platform admins away from /admin/login → /admin
+  if (pathname === '/admin/login' && user) {
+    const adminCookie = request.cookies.get('rev_ai_admin_session');
+    if (adminCookie?.value === `admin_active_${user.id}`) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/admin';
+      return NextResponse.redirect(url);
+    }
+  }
 
   // Protect /dashboard and /onboarding routes
   if (!user && (pathname.startsWith('/dashboard') || pathname.startsWith('/onboarding'))) {
@@ -88,28 +97,36 @@ export async function updateSession(request: NextRequest) {
   }
 
   // Redirect authenticated users with NO organization membership away from /dashboard to /workspace-access
+  // EXCEPTION: Platform admins bypass ALL organization membership requirements
   if (user && pathname.startsWith('/dashboard')) {
-    const { data: profile } = await supabase
-      .from('users')
-      .select('id')
-      .eq('auth_id', user.id)
-      .maybeSingle();
+    const adminCookie = request.cookies.get('rev_ai_admin_session');
+    const isPlatformAdmin = adminCookie?.value === `admin_active_${user.id}`;
 
-    if (profile) {
-      const { data: member } = await supabase
-        .from('organization_members')
+    if (!isPlatformAdmin) {
+      // Normal user: enforce org membership
+      const { data: profile } = await supabase
+        .from('users')
         .select('id')
-        .eq('user_id', profile.id)
+        .eq('auth_id', user.id)
         .maybeSingle();
 
-      if (!member) {
-        const url = request.nextUrl.clone();
-        url.pathname = '/workspace-access';
-        return NextResponse.redirect(url);
+      if (profile) {
+        const { data: member } = await supabase
+          .from('organization_members')
+          .select('id')
+          .eq('user_id', profile.id)
+          .maybeSingle();
+
+        if (!member) {
+          const url = request.nextUrl.clone();
+          url.pathname = '/workspace-access';
+          return NextResponse.redirect(url);
+        }
+      } else {
+        // Profile not yet created — allow through for auto-provisioning
       }
-    } else {
-      // If profile hasn't been created yet, allow through to dashboard layout where getOrCreateUserProfile will auto-provision it cleanly
     }
+    // Platform admin: skip org membership check entirely — full access granted
   }
 
   // Redirect authenticated users away from /auth/login and /auth/signup
