@@ -86,7 +86,7 @@ export default function AdminOverviewPage() {
 
           <button
             onClick={fetchStats}
-            className="bg-white text-black font-extrabold text-xs px-4 py-2 uppercase border-sharp hover:bg-[#12B76A] transition-colors flex items-center gap-2 self-start md:self-auto"
+            className="bg-white text-black font-extrabold text-xs px-4 py-2 uppercase border-sharp hover:bg-[#12B76A] transition-colors flex items-center gap-2 self-start md:self-auto cursor-pointer"
           >
             <RefreshCw className="w-3.5 h-3.5" /> Refresh Metrics
           </button>

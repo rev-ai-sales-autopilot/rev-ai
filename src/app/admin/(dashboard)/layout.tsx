@@ -14,7 +14,7 @@ async function adminLogoutAction() {
   return redirect('/admin/login');
 }
 
-export default async function AdminLayout({
+export default async function AdminDashboardLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -52,7 +52,7 @@ export default async function AdminLayout({
             <form action={adminLogoutAction}>
               <button
                 type="submit"
-                className="bg-white/10 hover:bg-white/20 text-white py-1.5 px-3 text-xs uppercase font-extrabold flex items-center gap-1.5 border border-white/20"
+                className="bg-white/10 hover:bg-white/20 text-white py-1.5 px-3 text-xs uppercase font-extrabold flex items-center gap-1.5 border border-white/20 cursor-pointer"
               >
                 <LogOut className="w-3.5 h-3.5" /> Logout
               </button>
