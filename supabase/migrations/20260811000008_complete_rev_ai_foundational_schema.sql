@@ -397,68 +397,79 @@ $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- Function to create workspace owner atomically
 CREATE OR REPLACE FUNCTION public.create_workspace_owner(
-    p_auth_id UUID,
-    p_email TEXT,
-    p_full_name TEXT,
-    p_org_name TEXT,
-    p_org_industry TEXT DEFAULT NULL
+    p_name TEXT,
+    p_slug TEXT,
+    p_industry TEXT DEFAULT 'Sales & Marketing'
 )
 RETURNS JSONB AS $$
 DECLARE
     v_user_id UUID;
     v_org_id UUID;
-    v_slug TEXT;
-    v_base_slug TEXT;
-    v_counter INT := 1;
+    v_existing_org_id UUID;
 BEGIN
-    -- 1. Get or create public.users profile
-    SELECT id INTO v_user_id FROM public.users WHERE auth_id = p_auth_id;
+    -- Resolve public.users.id for authenticated user
+    SELECT id INTO v_user_id
+    FROM public.users
+    WHERE auth_id = auth.uid();
+
+    -- Auto-provision public.users profile if missing
     IF v_user_id IS NULL THEN
-        INSERT INTO public.users (auth_id, email, full_name)
-        VALUES (p_auth_id, p_email, COALESCE(p_full_name, SPLIT_PART(p_email, '@', 1)))
+        INSERT INTO public.users (auth_id, email, full_name, created_at, updated_at)
+        SELECT
+            id,
+            email,
+            COALESCE(raw_user_meta_data->>'full_name', SPLIT_PART(email, '@', 1)),
+            NOW(),
+            NOW()
+        FROM auth.users
+        WHERE id = auth.uid()
+        ON CONFLICT (auth_id) DO UPDATE SET email = EXCLUDED.email
         RETURNING id INTO v_user_id;
     END IF;
 
-    -- 2. Check if user already owns an org
-    SELECT organization_id INTO v_org_id
-    FROM public.organization_members
-    WHERE user_id = v_user_id;
-
-    IF v_org_id IS NOT NULL THEN
-        -- Promote to OWNER if not already OWNER
-        UPDATE public.organization_members
-        SET role = 'OWNER', updated_at = NOW()
-        WHERE user_id = v_user_id AND organization_id = v_org_id;
-
-        RETURN jsonb_build_object('success', true, 'organization_id', v_org_id, 'role', 'OWNER', 'existing', true);
+    IF v_user_id IS NULL THEN
+        RAISE EXCEPTION 'Unable to resolve user profile for authenticated user';
     END IF;
 
-    -- 3. Generate unique slug
-    v_base_slug := LOWER(REGEXP_REPLACE(p_org_name, '[^a-zA-Z0-9]', '-', 'g'));
-    v_slug := v_base_slug;
+    -- Check if user ALREADY belongs to an organization
+    SELECT organization_id INTO v_existing_org_id
+    FROM public.organization_members
+    WHERE user_id = v_user_id
+    LIMIT 1;
 
-    WHILE EXISTS (SELECT 1 FROM public.organizations WHERE slug = v_slug) LOOP
-        v_counter := v_counter + 1;
-        v_slug := v_base_slug || '-' || v_counter;
-    END LOOP;
+    IF v_existing_org_id IS NOT NULL THEN
+        -- Promote existing membership to OWNER
+        UPDATE public.organization_members
+        SET role = 'OWNER', updated_at = NOW()
+        WHERE user_id = v_user_id AND organization_id = v_existing_org_id;
 
-    -- 4. Create Organization
+        RETURN jsonb_build_object(
+            'success', true,
+            'already_exists', true,
+            'organization_id', v_existing_org_id
+        );
+    END IF;
+
+    -- Insert organization
     INSERT INTO public.organizations (name, slug, industry)
-    VALUES (p_org_name, v_slug, COALESCE(p_org_industry, 'General Workflows'))
+    VALUES (p_name, p_slug, COALESCE(p_industry, 'Sales & Marketing'))
     RETURNING id INTO v_org_id;
 
-    -- 5. Add user as OWNER
+    -- Insert business profile
+    INSERT INTO public.business_profiles (organization_id, business_name, industry)
+    VALUES (v_org_id, p_name, COALESCE(p_industry, 'Sales & Marketing'))
+    ON CONFLICT (organization_id) DO NOTHING;
+
+    -- Insert owner membership
     INSERT INTO public.organization_members (organization_id, user_id, role)
-    VALUES (v_org_id, v_user_id, 'OWNER');
+    VALUES (v_org_id, v_user_id, 'OWNER')
+    ON CONFLICT (organization_id, user_id) DO UPDATE SET role = 'OWNER';
 
-    -- 6. Create default Business Profile
-    INSERT INTO public.business_profiles (
-        organization_id, business_name, industry, business_description, business_email
-    ) VALUES (
-        v_org_id, p_org_name, COALESCE(p_org_industry, 'General Workflows'), 'Automated Rev AI Sales Workspace', p_email
-    ) ON CONFLICT (organization_id) DO NOTHING;
-
-    RETURN jsonb_build_object('success', true, 'organization_id', v_org_id, 'role', 'OWNER', 'existing', false);
+    RETURN jsonb_build_object(
+        'success', true,
+        'already_exists', false,
+        'organization_id', v_org_id
+    );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
@@ -526,7 +537,7 @@ ALTER TABLE public.admin_audit_logs ENABLE ROW LEVEL SECURITY;
 GRANT EXECUTE ON FUNCTION public.get_user_org_ids() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.is_platform_admin(UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.bootstrap_platform_admin(UUID) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.create_workspace_owner(UUID, TEXT, TEXT, TEXT, TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.create_workspace_owner(TEXT, TEXT, TEXT) TO authenticated;
 
 -- Policies for public.users
 DROP POLICY IF EXISTS "Users can view own profile" ON public.users;
