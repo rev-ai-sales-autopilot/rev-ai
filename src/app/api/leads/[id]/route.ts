@@ -69,13 +69,23 @@ export async function GET(
       );
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const meta = (rawLead as any).metadata || {};
     const lead = {
       ...rawLead,
-      name: rawLead.name || [rawLead.first_name, rawLead.last_name].filter(Boolean).join(' ') || 'Unnamed Lead',
-      company: rawLead.company || rawLead.company_name || 'N/A',
-      priority: rawLead.priority || 'NORMAL',
-      ai_classification: rawLead.ai_classification || (rawLead.heat_level !== 'COLD' ? rawLead.heat_level : null),
-      ai_score: rawLead.ai_score !== undefined && rawLead.ai_score !== null ? rawLead.ai_score : (rawLead.qualification_score > 0 ? rawLead.qualification_score : null),
+      name: rawLead.name || meta.name || [rawLead.first_name, rawLead.last_name].filter(Boolean).join(' ') || 'Unnamed Lead',
+      company: rawLead.company || rawLead.company_name || meta.company || 'N/A',
+      industry: rawLead.industry || meta.industry || 'N/A',
+      priority: rawLead.priority || meta.priority || 'NORMAL',
+      budget: rawLead.budget !== undefined && rawLead.budget !== null
+        ? Number(rawLead.budget)
+        : (meta.budget !== undefined && meta.budget !== null ? Number(meta.budget) : null),
+      requirement: rawLead.requirement || meta.requirement || rawLead.summary || null,
+      message: rawLead.message || meta.message || null,
+      ai_classification: rawLead.ai_classification || meta.ai_classification || (rawLead.heat_level !== 'COLD' ? rawLead.heat_level : null),
+      ai_score: rawLead.ai_score !== undefined && rawLead.ai_score !== null
+        ? rawLead.ai_score
+        : (meta.ai_score !== undefined ? meta.ai_score : (rawLead.qualification_score > 0 ? rawLead.qualification_score : null)),
     };
 
     return NextResponse.json({
@@ -143,7 +153,22 @@ export async function PATCH(
 
     const organizationId = membership.organization_id;
 
-    // 4. Parse & Validate body with Zod
+    // 4. Fetch existing lead to preserve metadata
+    const { data: existingLead, error: fetchErr } = await supabase
+      .from('leads')
+      .select('*')
+      .eq('id', leadId)
+      .eq('organization_id', organizationId)
+      .maybeSingle();
+
+    if (fetchErr || !existingLead) {
+      return NextResponse.json(
+        { success: false, error: { code: 'LEAD_NOT_FOUND', message: 'Lead not found or unauthorized' } },
+        { status: 404 }
+      );
+    }
+
+    // 5. Parse & Validate body with Zod
     const body = await request.json().catch(() => ({}));
     const validationResult = UpdateLeadSchema.safeParse(body);
 
@@ -156,31 +181,39 @@ export async function PATCH(
     }
 
     const input = validationResult.data;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const existingMeta = (existingLead as any).metadata || {};
+
+    const updatedMeta = {
+      ...existingMeta,
+      ...(input.name !== undefined ? { name: input.name.trim() } : {}),
+      ...(input.company !== undefined ? { company: input.company } : {}),
+      ...(input.industry !== undefined ? { industry: input.industry } : {}),
+      ...(input.priority !== undefined ? { priority: input.priority } : {}),
+      ...(input.budget !== undefined ? { budget: input.budget !== null ? Number(input.budget) : null } : {}),
+      ...(input.requirement !== undefined ? { requirement: input.requirement } : {}),
+      ...(input.message !== undefined ? { message: input.message } : {}),
+    };
 
     // Construct update payload (protected fields organization_id and created_at cannot be updated)
     const updatePayload: Record<string, unknown> = {
       updated_at: new Date().toISOString(),
+      metadata: updatedMeta,
     };
 
     if (input.name !== undefined) {
-      updatePayload.name = input.name.trim();
       const parts = input.name.trim().split(/\s+/);
       updatePayload.first_name = parts[0] || input.name;
       updatePayload.last_name = parts.slice(1).join(' ') || null;
     }
     if (input.email !== undefined) updatePayload.email = input.email;
     if (input.phone !== undefined) updatePayload.phone = input.phone || null;
-    if (input.company !== undefined) {
-      updatePayload.company = input.company || null;
-      updatePayload.company_name = input.company || null;
-    }
-    if (input.industry !== undefined) updatePayload.industry = input.industry || null;
+    if (input.company !== undefined) updatePayload.company_name = input.company || null;
     if (input.source !== undefined) updatePayload.source = input.source;
     if (input.status !== undefined) updatePayload.status = input.status;
-    if (input.priority !== undefined) updatePayload.priority = input.priority;
-    if (input.budget !== undefined) updatePayload.budget = input.budget;
-    if (input.requirement !== undefined) updatePayload.requirement = input.requirement || null;
-    if (input.message !== undefined) updatePayload.message = input.message || null;
+    if (input.requirement !== undefined || input.message !== undefined) {
+      updatePayload.summary = input.requirement || input.message || existingLead.summary || null;
+    }
 
     // Execute update strictly scoped to authorized organization
     const { data: updatedLead, error: updateError } = await supabase
@@ -199,9 +232,24 @@ export async function PATCH(
       );
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const meta = (updatedLead as any).metadata || {};
+    const normalizedLead = {
+      ...updatedLead,
+      name: updatedLead.name || meta.name || [updatedLead.first_name, updatedLead.last_name].filter(Boolean).join(' ') || 'Unnamed Lead',
+      company: updatedLead.company || updatedLead.company_name || meta.company || 'N/A',
+      industry: updatedLead.industry || meta.industry || 'N/A',
+      priority: updatedLead.priority || meta.priority || 'NORMAL',
+      budget: updatedLead.budget !== undefined && updatedLead.budget !== null
+        ? Number(updatedLead.budget)
+        : (meta.budget !== undefined && meta.budget !== null ? Number(meta.budget) : null),
+      requirement: updatedLead.requirement || meta.requirement || updatedLead.summary || null,
+      message: updatedLead.message || meta.message || null,
+    };
+
     return NextResponse.json({
       success: true,
-      lead: updatedLead,
+      lead: normalizedLead,
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Failed to update lead';
