@@ -9,6 +9,12 @@ export interface AICompletionOptions {
   temperature?: number;
   maxTokens?: number;
   systemPrompt?: string;
+  /**
+   * Controls extended thinking / reasoning mode for Qwen3 family models.
+   * Set to false to disable chain-of-thought reasoning and get faster responses.
+   * Default: false (disabled for all Rev AI agents to prevent inference timeouts).
+   */
+  think?: boolean;
 }
 
 export interface AIProviderResponse {

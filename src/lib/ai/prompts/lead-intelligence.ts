@@ -1,6 +1,7 @@
 import { LeadIntelligenceInputPayload } from '../schemas/lead-intelligence';
 
-export const LEAD_INTELLIGENCE_SYSTEM_PROMPT = `You are Rev AI's Lead Intelligence Engine.
+export const LEAD_INTELLIGENCE_SYSTEM_PROMPT = `/no_think
+You are Rev AI's Lead Intelligence Engine.
 Your sole responsibility is to analyze inbound sales lead data and produce accurate, structured intelligence for Rev AI's workflow engine.
 
 RULES:

@@ -13,6 +13,8 @@ import {
   Clock,
   Edit2,
   Trash2,
+  AlertCircle,
+  RefreshCw,
 } from 'lucide-react';
 import { LeadRecord } from '@/types/lead';
 
@@ -63,12 +65,8 @@ export default function LeadDetailsModal({
     try {
       const res = await fetch('/api/ai/lead-intelligence', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          leadId: lead.id,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ leadId: lead.id }),
       });
 
       const data = await res.json();
@@ -77,25 +75,31 @@ export default function LeadDetailsModal({
         throw new Error(data.error?.message || 'AI lead analysis failed');
       }
 
-      // Update lead in database with AI analysis decisions
-      const patchRes = await fetch(`/api/leads/${lead.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          status: lead.status === 'NEW' ? 'QUALIFIED' : lead.status,
-        }),
-      });
-
-      if (!patchRes.ok) {
-        console.warn('Failed to update lead status after AI analysis');
+      // Update lead status in database after successful AI analysis
+      try {
+        await fetch(`/api/leads/${lead.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            status: lead.status === 'NEW' ? 'QUALIFIED' : lead.status,
+          }),
+        });
+      } catch {
+        console.warn('[LeadDetailsModal] Non-blocking: failed to update lead status after AI analysis');
       }
 
       onUpdate();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'AI Analysis execution failed';
-      setAnalysisError(msg);
+      const technicalMsg = err instanceof Error ? err.message : 'AI Analysis execution failed';
+      // Log technical detail server-side / dev console only
+      console.error('[LeadDetailsModal] AI Analysis error:', technicalMsg);
+      // Show user-friendly message
+      const isTimeout = technicalMsg.toLowerCase().includes('timeout') || technicalMsg.toLowerCase().includes('timed out');
+      setAnalysisError(
+        isTimeout
+          ? 'Qwen inference did not complete in time. This can happen during first load. Please retry.'
+          : 'Analysis could not be completed. Please try again.'
+      );
     } finally {
       setAnalyzing(false);
     }
@@ -168,7 +172,7 @@ export default function LeadDetailsModal({
                 <Cpu className="w-4 h-4 text-[#12B76A]" /> Qwen 3.5 AI Sales Intelligence
               </h3>
 
-              {!hasAIAnalysis && (
+              {(!hasAIAnalysis || analysisError) && (
                 <button
                   onClick={handleAnalyzeWithAI}
                   disabled={analyzing}
@@ -177,6 +181,10 @@ export default function LeadDetailsModal({
                   {analyzing ? (
                     <span className="flex items-center gap-1.5">
                       <Loader2 className="w-3.5 h-3.5 animate-spin" /> ANALYZING WITH QWEN...
+                    </span>
+                  ) : analysisError ? (
+                    <span className="flex items-center gap-1.5">
+                      <RefreshCw className="w-3.5 h-3.5" /> RETRY ANALYSIS
                     </span>
                   ) : (
                     <span className="flex items-center gap-1.5">
@@ -188,12 +196,16 @@ export default function LeadDetailsModal({
             </div>
 
             {analysisError && (
-              <div className="p-3 bg-red-600 text-white text-xs font-bold uppercase tracking-wider">
-                {analysisError}
+              <div className="p-3 bg-amber-50 border border-amber-400 text-black text-xs font-bold uppercase tracking-wider flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <div className="text-amber-800 font-black mb-0.5">AI ANALYSIS TEMPORARILY UNAVAILABLE</div>
+                  <div className="text-amber-700 normal-case font-medium">{analysisError}</div>
+                </div>
               </div>
             )}
 
-            {!hasAIAnalysis && !analyzing && (
+            {!hasAIAnalysis && !analyzing && !analysisError && (
               <div className="border-sharp bg-white p-4 text-center">
                 <span className="text-xs font-bold uppercase tracking-wider text-black/60 block">
                   AI INTELLIGENCE: NOT ANALYZED
