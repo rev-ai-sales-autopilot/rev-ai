@@ -83,10 +83,10 @@ export default async function DashboardLayout({
                 <span className="flex items-center gap-3"><Zap className="w-4 h-4 text-[#20C8E8]" /> Workflows</span>
                 <span className="text-[10px] bg-[#12B76A] text-black font-extrabold px-1.5 py-0.5">NEW</span>
               </Link>
-              <div className="flex items-center justify-between px-3 py-2 text-xs font-bold uppercase text-black/60 hover:text-black cursor-not-allowed">
-                <span className="flex items-center gap-3"><Users className="w-4 h-4" /> Leads</span>
-                <span className="text-[10px] bg-black/10 px-1 py-0.5">Phase 2</span>
-              </div>
+              <Link href="/dashboard/leads" className="flex items-center justify-between px-3 py-2 text-xs font-extrabold uppercase bg-[#F1F2F3] text-black border-sharp hover:bg-black hover:text-white transition-colors group">
+                <span className="flex items-center gap-3"><Users className="w-4 h-4 text-[#12B76A] group-hover:text-white" /> Leads</span>
+                <span className="text-[10px] bg-[#12B76A] text-black font-extrabold px-1.5 py-0.5 group-hover:bg-white">LIVE</span>
+              </Link>
               <div className="flex items-center justify-between px-3 py-2 text-xs font-bold uppercase text-black/60 hover:text-black cursor-not-allowed">
                 <span className="flex items-center gap-3"><MessageSquare className="w-4 h-4" /> Conversations</span>
                 <span className="text-[10px] bg-black/10 px-1 py-0.5">Phase 2</span>

@@ -35,7 +35,7 @@ export default async function DashboardPage() {
             .from('leads')
             .select('*', { count: 'exact', head: true })
             .eq('organization_id', orgId)
-            .eq('heat_level', 'HOT');
+            .or('ai_classification.eq.HOT,heat_level.eq.HOT');
           hotLeadsCount = hotLeads || 0;
 
           const { count: meetings } = await supabase
