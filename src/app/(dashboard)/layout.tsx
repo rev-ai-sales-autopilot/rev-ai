@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { logoutAction } from '../auth/actions';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getUserOrgMembership } from '@/lib/supabase/user-profile';
-import { LayoutDashboard, Users, MessageSquare, Zap, Calendar, BarChart3, Database, Shield, LogOut } from 'lucide-react';
+import { LayoutDashboard, Users, MessageSquare, Zap, Calendar, BarChart3, Database, Shield, LogOut, Cpu } from 'lucide-react';
 
 export default async function DashboardLayout({
   children,
@@ -105,9 +105,13 @@ export default async function DashboardLayout({
               Knowledge & Rules
             </div>
             <nav className="space-y-1">
+              <Link href="/dashboard/ai-test" className="flex items-center justify-between px-3 py-2 text-xs font-extrabold uppercase bg-[#F1F2F3] text-black border-sharp hover:bg-black hover:text-white transition-colors group">
+                <span className="flex items-center gap-3"><Cpu className="w-4 h-4 text-[#12B76A] group-hover:text-white" /> AI Intelligence</span>
+                <span className="text-[10px] bg-[#12B76A] text-black font-extrabold px-1.5 py-0.5 group-hover:bg-white">LIVE</span>
+              </Link>
               <div className="flex items-center justify-between px-3 py-2 text-xs font-bold uppercase text-black/60 cursor-not-allowed">
                 <span className="flex items-center gap-3"><Database className="w-4 h-4" /> Knowledge Base</span>
-                <span className="text-[10px] bg-[#12B76A] text-black px-1 py-0.5">Day 3</span>
+                <span className="text-[10px] bg-black/10 px-1 py-0.5">Day 3</span>
               </div>
               <Link href="/dashboard/team" className="flex items-center justify-between px-3 py-2 text-xs font-extrabold uppercase bg-[#F1F2F3] text-black border-sharp hover:bg-black hover:text-white transition-colors">
                 <span className="flex items-center gap-3"><Shield className="w-4 h-4 text-[#12B76A]" /> Team & Security</span>

@@ -1,6 +1,7 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getUserOrgMembership } from '@/lib/supabase/user-profile';
 import { Bot, CheckCircle2, ShieldCheck, Flame, Users, CalendarCheck, TrendingUp, AlertCircle } from 'lucide-react';
+import AIIntelligenceStatusCard from '@/components/dashboard/ai-intelligence-status';
 
 export default async function DashboardPage() {
   const supabase = await createServerSupabaseClient();
@@ -129,6 +130,9 @@ export default async function DashboardPage() {
         </div>
       </div>
 
+      {/* Rev AI Intelligence Engine Status */}
+      <AIIntelligenceStatusCard />
+
       {/* System Automation Status Section */}
       <div className="border-sharp bg-white p-8">
         <div className="flex items-center justify-between border-b border-black pb-4 mb-6">
@@ -161,14 +165,14 @@ export default async function DashboardPage() {
 
           <div className="border-sharp bg-[#F1F2F3] p-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <AlertCircle className="w-5 h-5 text-black/40" />
+              <CheckCircle2 className="w-5 h-5 text-[#12B76A]" />
               <div>
-                <h4 className="font-extrabold text-sm uppercase text-black/80">AI Lead Intelligence</h4>
-                <p className="text-xs text-black/60">Lead scoring & intent extraction agent</p>
+                <h4 className="font-extrabold text-sm uppercase text-black">AI Lead Intelligence</h4>
+                <p className="text-xs text-black/60">Qwen 3.5 scoring & decision engine</p>
               </div>
             </div>
-            <span className="bg-black/10 text-black/60 text-[10px] font-bold px-2 py-0.5 uppercase">
-              Not Configured (Day 5)
+            <span className="bg-[#12B76A] text-black text-[10px] font-extrabold px-2 py-0.5 uppercase">
+              Active (Qwen 3.5)
             </span>
           </div>
 
@@ -181,7 +185,7 @@ export default async function DashboardPage() {
               </div>
             </div>
             <span className="bg-black/10 text-black/60 text-[10px] font-bold px-2 py-0.5 uppercase">
-              Not Configured (Day 5)
+              Operational
             </span>
           </div>
 

@@ -25,8 +25,10 @@ Rev AI is a multi-tenant B2B SaaS platform designed to function as an autonomous
                              │
                              ▼
 ┌────────────────────────────┴────────────────────────────┐
-│                        AI ENGINE                        │
-│   Centralized LLM Abstraction Layer (OpenAI/Anthropic)  │
+│                    AI INTELLIGENCE ENGINE               │
+│   Ollama Provider (qwen3.5:latest) + Agnostic AI Client │
+│   Structured Decisions (Zod) + Lead Intelligence Agent  │
+│   Principle: AI recommends; Workflow Engine executes    │
 │      Prompt Templates + AI Agents + ai_runs Auditing    │
 └────────────────────────────┬────────────────────────────┘
                              │
