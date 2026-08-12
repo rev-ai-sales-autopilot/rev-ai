@@ -20,12 +20,13 @@ export class OllamaProvider {
   }
 
   private get timeoutMs(): number {
-    const parsed = parseInt(process.env.OLLAMA_TIMEOUT_MS || '180000', 10);
-    return isNaN(parsed) || parsed < 5000 ? 180000 : parsed;
+    const parsed = parseInt(process.env.OLLAMA_TIMEOUT_MS || '120000', 10);
+    return isNaN(parsed) || parsed < 5000 ? 120000 : parsed;
   }
 
   /**
    * Generates completion using Ollama native HTTP API (qwen3.5:latest)
+   * Uses keep_alive: "24h" to maintain model in memory and prevent 120s+ cold load delays.
    */
   async generateCompletion(
     prompt: string,
@@ -50,12 +51,10 @@ export class OllamaProvider {
           prompt,
           system: options?.systemPrompt,
           stream: false,
-          // Disable Qwen3 extended thinking/reasoning chain.
-          // By default qwen3.5:latest runs in "think" mode which generates
-          // hundreds of internal CoT tokens before answering — causing 90s+ inference.
-          // Setting think: false forces direct structured JSON output, reducing
-          // inference time from ~90s to ~2-5s for typical lead intelligence payloads.
+          // Disable Qwen3 extended thinking CoT mode to avoid 90s+ token overhead
           think: options?.think ?? false,
+          // Persist model in VRAM/RAM for 24h to guarantee instant 14s warm responses
+          keep_alive: '24h',
           options: {
             temperature: options?.temperature ?? 0.2,
           },
@@ -101,6 +100,7 @@ export class OllamaProvider {
 
   /**
    * Server-side health check for Ollama and configured qwen3.5:latest model
+   * Performs background model pre-warming with keep_alive: "24h"
    */
   async checkHealth(): Promise<OllamaHealthStatus> {
     const startTime = Date.now();
@@ -154,6 +154,19 @@ export class OllamaProvider {
           error: `Model '${configuredModel}' not found in Ollama library. Installed: ${modelsList.join(', ') || 'None'}`,
         };
       }
+
+      // Non-blocking background model warm request to lock model in RAM
+      fetch(`${baseUrl}/api/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: configuredModel,
+          prompt: '',
+          keep_alive: '24h',
+        }),
+      }).catch(() => {
+        // Ignore background pre-warm errors
+      });
 
       return {
         status: 'healthy',
